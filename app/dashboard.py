@@ -22,30 +22,30 @@ customers = pd.read_excel(
 
 prices = pd.read_excel(
     excel_file,
-    sheet_name="Precios",
-    dtype={"SKU": str}
+    sheet_name="Precios"
 )
 
-prices["SKU"] = prices["SKU"].str.zfill(3)
-prices["SKU"] = prices["SKU"].astype(str).str.zfill(3)
-
-country = st.selectbox(
-    "Country",
-    sorted(prices["country"].unique())
+prices["CODIGO"] = (
+    prices["CODIGO"]
+    .astype(str)
+    .str.zfill(3)
 )
 
-available_customers = prices[
-    prices["country"] == country
-]["customer"].unique()
+available_customers = customers["Cliente"].dropna().unique()
 
 customer = st.selectbox(
     "Customer",
     sorted(available_customers)
 )
 
+customer_row = customers[
+    customers["Cliente"] == customer
+].iloc[0]
+
+lista_p = customer_row["LISTA P"]
+
 customer_prices = prices[
-    (prices["country"] == country) &
-    (prices["customer"] == customer)
+    prices["LISTA"] == lista_p
 ]
 
 st.markdown("---")
@@ -55,14 +55,10 @@ order_lines = []
 
 for _, row in customer_prices.iterrows():
 
-    sku = row["sku"]
-
-    product = products[
-        products["sku"] == sku
-    ].iloc[0]
+    sku = row["CODIGO"]
 
     col1, col2, col3, col4 = st.columns(
-        [2, 3, 2, 2]
+        [2, 4, 2, 2]
     )
 
     with col1:
@@ -70,12 +66,12 @@ for _, row in customer_prices.iterrows():
 
     with col2:
         st.write(
-            f"{product['brand']} - {product['product']}"
+            f"{row['MARCA']} - {row['Descripcion']}"
         )
 
     with col3:
         st.write(
-            f"CIF USD {row['price_usd']}"
+            f"CIF USD {row['Precio CIF']}"
         )
 
     with col4:
@@ -89,16 +85,16 @@ for _, row in customer_prices.iterrows():
 
     if cases > 0:
 
+        price_usd = float(row["Precio CIF"])
+
         order_lines.append({
             "sku": sku,
-            "brand": product["brand"],
-            "product": product["product"],
-            "presentation": product["presentation"],
+            "brand": row["MARCA"],
+            "product": row["Descripcion"],
+            "presentation": f"{row['GRAMOS']} g",
             "cases": cases,
-            "price_usd": float(row["price_usd"]),
-            "total_usd": (
-                cases * float(row["price_usd"])
-            )
+            "price_usd": price_usd,
+            "total_usd": cases * price_usd
         })
 
 st.markdown("---")
@@ -123,9 +119,7 @@ if order_lines:
 
     if st.button("Generate Proforma PDF"):
 
-        date_str = datetime.now().strftime(
-            "%Y%m%d"
-        )
+        date_str = datetime.now().strftime("%Y%m%d")
 
         output_dir = Path("outputs")
         pdf_dir = Path("outputs/pdf")
@@ -134,18 +128,12 @@ if order_lines:
         pdf_dir.mkdir(exist_ok=True)
 
         existing_files = list(
-            output_dir.glob(
-                f"proforma_{date_str}_*.md"
-            )
+            output_dir.glob(f"proforma_{date_str}_*.md")
         )
 
-        sequence = str(
-            len(existing_files) + 1
-        ).zfill(3)
+        sequence = str(len(existing_files) + 1).zfill(3)
 
-        proforma_number = (
-            f"PF-{date_str}-{sequence}"
-        )
+        proforma_number = f"PF-{date_str}-{sequence}"
 
         rows_md = []
 
@@ -170,7 +158,7 @@ if order_lines:
 
 - Proforma: {proforma_number}
 - Customer: {customer}
-- Country: {country}
+- Customer Price List: {lista_p}
 - Incoterm: CIF
 - Currency: USD
 
@@ -197,20 +185,14 @@ if order_lines:
 - Subject to inventory availability.
 """
 
-        md_output_path = (
-            f"outputs/proforma_{date_str}_{sequence}.md"
-        )
-
-        pdf_output_path = (
-            f"outputs/pdf/proforma_{date_str}_{sequence}.pdf"
-        )
+        md_output_path = f"outputs/proforma_{date_str}_{sequence}.md"
+        pdf_output_path = f"outputs/pdf/proforma_{date_str}_{sequence}.pdf"
 
         with open(
             md_output_path,
             "w",
             encoding="utf-8"
         ) as f:
-
             f.write(proforma_text)
 
         html_body = markdown.markdown(
@@ -218,61 +200,47 @@ if order_lines:
             extensions=["tables"]
         )
 
-        logo_uri = Path(
-            "assets/logo.png"
-        ).resolve().as_uri()
+        logo_uri = Path("assets/logo.png").resolve().as_uri()
 
         html_content = f"""
 <html>
 <head>
 <style>
-
 body {{
     font-family: Arial, sans-serif;
     padding: 40px;
     color: #222;
 }}
-
 .logo {{
     width: 220px;
     margin-bottom: 30px;
 }}
-
 h1, h2 {{
     color: #003B75;
 }}
-
 table {{
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
 }}
-
 th {{
     background-color: #003B75;
     color: white;
     padding: 10px;
     border: 1px solid #ccc;
 }}
-
 td {{
     padding: 8px;
     border: 1px solid #ccc;
 }}
-
 strong {{
     font-size: 18px;
 }}
-
 </style>
 </head>
-
 <body>
-
 <img src="{logo_uri}" class="logo">
-
 {html_body}
-
 </body>
 </html>
 """
@@ -286,10 +254,7 @@ strong {{
             f"Proforma generated: {proforma_number}"
         )
 
-        with open(
-            pdf_output_path,
-            "rb"
-        ) as pdf_file:
+        with open(pdf_output_path, "rb") as pdf_file:
 
             st.download_button(
                 label="Download PDF",

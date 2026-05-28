@@ -12,7 +12,16 @@ prices = pd.read_csv(
 )
 prices["sku"] = prices["sku"].str.zfill(3)
 
-customer = customers.iloc[0]
+CUSTOMER_NAME = "Massy Stores"
+
+customer_match = customers[
+    customers["customer"] == CUSTOMER_NAME
+]
+
+if customer_match.empty:
+    raise ValueError(f"Customer not found: {CUSTOMER_NAME}")
+
+customer = customer_match.iloc[0]
 customer_name = customer["customer"]
 
 order_lines = [

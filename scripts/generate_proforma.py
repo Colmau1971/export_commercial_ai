@@ -1,15 +1,22 @@
 import pandas as pd
 from datetime import datetime
 
-products = pd.read_csv("data/products/products_master.csv", dtype={"sku": str})
+products = pd.read_csv(
+    "data/products/products_master.csv",
+    dtype={"sku": str}
+)
+
 products["sku"] = products["sku"].str.zfill(3)
 
-customers = pd.read_csv("data/customers/customers_master.csv")
+customers = pd.read_csv(
+    "data/customers/customers_master.csv"
+)
 
 prices = pd.read_csv(
     "commercial/pricing/customer_price_list.csv",
     dtype={"sku": str}
 )
+
 prices["sku"] = prices["sku"].str.zfill(3)
 
 COUNTRY = "Aruba"
@@ -20,7 +27,9 @@ customer_match = customers[
 ]
 
 if customer_match.empty:
-    raise ValueError(f"Customer not found: {CUSTOMER_NAME}")
+    raise ValueError(
+        f"Customer not found: {CUSTOMER_NAME}"
+    )
 
 customer = customer_match.iloc[0]
 customer_name = customer["customer"]
@@ -35,33 +44,66 @@ rows = []
 subtotal = 0
 
 for line in order_lines:
+
     sku = line["sku"]
 
-        price_match = prices[
-            (prices["country"] == COUNTRY) &
-            (prices["customer"] == customer_name) &
-            (prices["sku"] == sku)
-        ]
+    product_match = products[
+        products["sku"] == sku
+    ]
+
+    price_match = prices[
+        (prices["country"] == COUNTRY) &
+        (prices["customer"] == customer_name) &
+        (prices["sku"] == sku)
+    ]
+
     if product_match.empty:
-        raise ValueError(f"SKU not found in products_master.csv: {sku}")
+        raise ValueError(
+            f"SKU not found: {sku}"
+        )
 
     if price_match.empty:
-        raise ValueError(f"Price not found for customer {customer_name} and SKU {sku}")
+        raise ValueError(
+            f"Price not found for {customer_name} | {sku}"
+        )
 
     product = product_match.iloc[0]
-    price_usd = float(price_match.iloc[0]["price_usd"])
+
+    price_usd = float(
+        price_match.iloc[0]["price_usd"]
+    )
 
     total = line["cases"] * price_usd
+
     subtotal += total
 
     rows.append(
-        f"| {sku} | {product['brand']} | {product['product']} | "
-        f"{product['presentation']} | {line['cases']} | "
-        f"{price_usd:.2f} | {total:.2f} |"
+        f"| {sku} | "
+        f"{product['brand']} | "
+        f"{product['product']} | "
+        f"{product['presentation']} | "
+        f"{line['cases']} | "
+        f"{price_usd:.2f} | "
+        f"{total:.2f} |"
     )
 
 date_str = datetime.now().strftime("%Y%m%d")
-proforma_number = f"PF-{date_str}-001"
+
+from pathlib import Path
+
+output_dir = Path("outputs")
+output_dir.mkdir(exist_ok=True)
+
+existing_files = list(
+    output_dir.glob(f"proforma_{date_str}_*.md")
+)
+
+next_number = len(existing_files) + 1
+
+sequence = str(next_number).zfill(3)
+
+proforma_number = f"PF-{date_str}-{sequence}"
+
 product_table = "\n".join(rows)
 
 proforma_text = f"""
@@ -71,9 +113,9 @@ proforma_text = f"""
 
 - Proforma: {proforma_number}
 - Customer: {customer['customer']}
-- Country: {customer['country']}
-- Incoterm: {customer['incoterm']}
-- Currency: {customer['currency']}
+- Country: {COUNTRY}
+- Incoterm: CIF
+- Currency: USD
 - Payment Terms: {customer['payment_terms']}
 
 ---
@@ -88,20 +130,29 @@ proforma_text = f"""
 
 ## Total
 
-**Subtotal USD:** {subtotal:.2f}
+**Total CIF USD:** {subtotal:.2f}
 
 ---
 
 ## Commercial Conditions
 
-- Prices are CIF and already include international freight and insurance.
-- Prices are based on the customer price list.
+- Prices are CIF and already include freight and insurance.
 - Prices subject to final confirmation.
+- Subject to inventory availability.
 """
 
-output_path = f"outputs/proforma_{date_str}_001.md"
+output_path = (
+    f"outputs/proforma_{date_str}_{sequence}.md"
+)
 
-with open(output_path, "w", encoding="utf-8") as f:
+with open(
+    output_path,
+    "w",
+    encoding="utf-8"
+) as f:
+
     f.write(proforma_text)
 
-print(f"Proforma generated: {output_path}")
+print(
+    f"Proforma generated: {output_path}"
+)

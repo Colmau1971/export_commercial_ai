@@ -37,12 +37,11 @@ subtotal = 0
 for line in order_lines:
     sku = line["sku"]
 
-    product_match = products[products["sku"] == sku]
-    price_match = prices[
-        (prices["customer"] == customer_name) &
-        (prices["sku"] == sku)
-    ]
-
+        price_match = prices[
+            (prices["country"] == COUNTRY) &
+            (prices["customer"] == customer_name) &
+            (prices["sku"] == sku)
+        ]
     if product_match.empty:
         raise ValueError(f"SKU not found in products_master.csv: {sku}")
 
@@ -81,7 +80,7 @@ proforma_text = f"""
 
 ## Product Detail
 
-| SKU | Brand | Product | Presentation | Cases | Price USD | Total USD |
+| SKU | Brand | Product | Presentation | Cases | CIF Unit Price USD | CIF Total USD |
 |---|---|---|---|---:|---:|---:|
 {product_table}
 
@@ -95,11 +94,9 @@ proforma_text = f"""
 
 ## Commercial Conditions
 
+- Prices are CIF and already include international freight and insurance.
 - Prices are based on the customer price list.
 - Prices subject to final confirmation.
-- Freight not included unless specified.
-- Subject to inventory availability.
-- Estimated lead time: 15-20 days.
 """
 
 output_path = f"outputs/proforma_{date_str}_001.md"

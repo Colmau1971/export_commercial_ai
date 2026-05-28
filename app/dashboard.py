@@ -37,7 +37,10 @@ customer = st.selectbox(
     "Customer",
     sorted(available_customers)
 )
-
+purchase_order = st.text_input(
+    "Customer Purchase Order Number",
+    placeholder="Ej: PO-12345"
+)
 customer_row = customers[
     customers["Cliente"] == customer
 ].iloc[0]
@@ -116,7 +119,9 @@ if order_lines:
         "Total CIF USD",
         f"{total:,.2f}"
     )
-
+    if not purchase_order:
+        st.error("Please enter the customer purchase order number.")
+        st.stop()
     if st.button("Generate Proforma PDF"):
 
         date_str = datetime.now().strftime("%Y%m%d")
@@ -158,6 +163,7 @@ if order_lines:
 
 - Proforma: {proforma_number}
 - Customer: {customer}
+- Customer PO Number: {purchase_order}
 - Customer Price List: {lista_p}
 - Incoterm: CIF
 - Currency: USD

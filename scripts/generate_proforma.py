@@ -1,39 +1,58 @@
 import pandas as pd
 from datetime import datetime
 
-products = pd.read_csv(
-    "data/products/products_master.csv",
-    dtype={"sku": str}
-)
+products = pd.read_csv("data/products/products_master.csv", dtype={"sku": str})
 products["sku"] = products["sku"].str.zfill(3)
+
 customers = pd.read_csv("data/customers/customers_master.csv")
 
+prices = pd.read_csv(
+    "commercial/pricing/customer_price_list.csv",
+    dtype={"sku": str}
+)
+prices["sku"] = prices["sku"].str.zfill(3)
+
 customer = customers.iloc[0]
+customer_name = customer["customer"]
 
 order_lines = [
-    {"sku": "001", "cases": 500, "price_usd": 12.50},
-    {"sku": "002", "cases": 300, "price_usd": 18.75},
-    {"sku": "003", "cases": 200, "price_usd": 9.90},
+    {"sku": "001", "cases": 500},
+    {"sku": "002", "cases": 300},
+    {"sku": "003", "cases": 200},
 ]
 
 rows = []
 subtotal = 0
 
 for line in order_lines:
-    product = products[products["sku"] == line["sku"]].iloc[0]
+    sku = line["sku"]
 
-    total = line["cases"] * line["price_usd"]
+    product_match = products[products["sku"] == sku]
+    price_match = prices[
+        (prices["customer"] == customer_name) &
+        (prices["sku"] == sku)
+    ]
+
+    if product_match.empty:
+        raise ValueError(f"SKU not found in products_master.csv: {sku}")
+
+    if price_match.empty:
+        raise ValueError(f"Price not found for customer {customer_name} and SKU {sku}")
+
+    product = product_match.iloc[0]
+    price_usd = float(price_match.iloc[0]["price_usd"])
+
+    total = line["cases"] * price_usd
     subtotal += total
 
     rows.append(
-        f"| {line['sku']} | {product['brand']} | {product['product']} | "
+        f"| {sku} | {product['brand']} | {product['product']} | "
         f"{product['presentation']} | {line['cases']} | "
-        f"{line['price_usd']:.2f} | {total:.2f} |"
+        f"{price_usd:.2f} | {total:.2f} |"
     )
 
 date_str = datetime.now().strftime("%Y%m%d")
 proforma_number = f"PF-{date_str}-001"
-
 product_table = "\n".join(rows)
 
 proforma_text = f"""
@@ -66,6 +85,7 @@ proforma_text = f"""
 
 ## Commercial Conditions
 
+- Prices are based on the customer price list.
 - Prices subject to final confirmation.
 - Freight not included unless specified.
 - Subject to inventory availability.

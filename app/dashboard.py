@@ -38,8 +38,8 @@ customer = st.selectbox(
     sorted(available_customers)
 )
 purchase_order = st.text_input(
-    "Customer Purchase Order Number",
-    placeholder="Ej: PO-12345"
+    "Orden de compra del cliente",
+    placeholder="Ej: OC-12345"
 )
 customer_row = customers[
     customers["Cliente"] == customer
@@ -119,10 +119,11 @@ if order_lines:
         "Total CIF USD",
         f"{total:,.2f}"
     )
-    if not purchase_order:
-        st.error("Please enter the customer purchase order number.")
-        st.stop()
+
     if st.button("Generate Proforma PDF"):
+        if not purchase_order:
+            st.error("Debes ingresar la orden de compra del cliente.")
+            st.stop()
 
         date_str = datetime.now().strftime("%Y%m%d")
 
@@ -150,8 +151,8 @@ if order_lines:
                 f"{row['product']} | "
                 f"{row['presentation']} | "
                 f"{row['cases']} | "
-                f"{row['price_usd']:.2f} | "
-                f"{row['total_usd']:.2f} |"
+                f"{row['price_usd']:,.2f} | "
+                f"{row['total_usd']:,.2f} |"
             )
 
         product_table = "\n".join(rows_md)
@@ -163,11 +164,10 @@ if order_lines:
 
 - Proforma: {proforma_number}
 - Customer: {customer}
-- Customer PO Number: {purchase_order}
-- Customer Price List: {lista_p}
+- Customer PO: {purchase_order}
+- Price List: {lista_p}
 - Incoterm: CIF
 - Currency: USD
-
 ---
 
 ## Product Detail
@@ -212,31 +212,49 @@ if order_lines:
 <html>
 <head>
 <style>
+
+@page {{
+    size: A4 landscape;
+    margin: 20px;
+}}
 body {{
     font-family: Arial, sans-serif;
-    padding: 40px;
+    padding: 20px;
     color: #222;
+    font-size: 11px;
+    line-height: 1.2;
 }}
 .logo {{
-    width: 220px;
-    margin-bottom: 30px;
+    width: 140px;
+    margin-bottom: 10px;
+    margin: 2px 0;
 }}
-h1, h2 {{
+h1 {{
     color: #003B75;
+    font-size: 24px;
+    margin-bottom: 8px;
+}}
+
+h2 {{
+    color: #003B75;
+    font-size: 16px;
+    margin-top: 12px;
+    margin-bottom: 6px;
 }}
 table {{
     width: 100%;
-    border-collapse: collapse;
+    borde  r-collapse: collapse;
     margin-top: 20px;
 }}
 th {{
     background-color: #003B75;
     color: white;
-    padding: 10px;
+    padding: 6px;
     border: 1px solid #ccc;
 }}
 td {{
-    padding: 8px;
+    padding: 5px;
+    font-size: 10px;
     border: 1px solid #ccc;
 }}
 strong {{

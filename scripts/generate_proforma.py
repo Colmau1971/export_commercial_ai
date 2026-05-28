@@ -1,5 +1,7 @@
 import pandas as pd
 from datetime import datetime
+import markdown
+from weasyprint import HTML
 
 products = pd.read_csv(
     "data/products/products_master.csv",
@@ -155,4 +157,20 @@ with open(
 
 print(
     f"Proforma generated: {output_path}"
+)
+pdf_output_path = (
+    f"outputs/pdf/proforma_{date_str}_{sequence}.pdf"
+)
+
+html_content = markdown.markdown(
+    proforma_text,
+    extensions=["tables"]
+)
+
+HTML(
+    string=html_content
+).write_pdf(pdf_output_path)
+
+print(
+    f"PDF generated: {pdf_output_path}"
 )

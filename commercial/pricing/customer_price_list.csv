@@ -1,10 +1,10 @@
-customer,sku,price_usd
-Super Food Aruba,001,12.50
-Super Food Aruba,002,18.75
-Super Food Aruba,003,9.90
-Massy Stores,001,11.80
-Massy Stores,002,17.95
-Massy Stores,003,9.50
-Bravo Dominicana,001,10.90
-Bravo Dominicana,002,16.75
-Bravo Dominicana,003,8.95
+country,customer,sku,price_usd,incoterm
+Aruba,Super Food Aruba,001,12.50,CIF
+Aruba,Super Food Aruba,002,18.75,CIF
+Aruba,Super Food Aruba,003,9.90,CIF
+Trinidad,Massy Stores,001,11.80,CIF
+Trinidad,Massy Stores,002,17.95,CIF
+Trinidad,Massy Stores,003,9.50,CIF
+Dominican Republic,Bravo Dominicana,001,10.90,CIF
+Dominican Republic,Bravo Dominicana,002,16.75,CIF
+Dominican Republic,Bravo Dominicana,003,8.95,CIF

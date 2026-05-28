@@ -12,7 +12,8 @@ prices = pd.read_csv(
 )
 prices["sku"] = prices["sku"].str.zfill(3)
 
-CUSTOMER_NAME = "Massy Stores"
+COUNTRY = "Aruba"
+CUSTOMER_NAME = "Super Food Aruba"
 
 customer_match = customers[
     customers["customer"] == CUSTOMER_NAME

@@ -13,22 +13,21 @@ st.set_page_config(
 st.title("Export Commercial AI")
 st.subheader("Proforma Generator")
 
-customers = pd.read_csv(
-    "data/customers/customers_master.csv"
+excel_file = "data/Factura Proforma.xlsx"
+
+customers = pd.read_excel(
+    excel_file,
+    sheet_name="Clientes"
 )
 
-products = pd.read_csv(
-    "data/products/products_master.csv",
-    dtype={"sku": str}
+prices = pd.read_excel(
+    excel_file,
+    sheet_name="Precios",
+    dtype={"SKU": str}
 )
 
-prices = pd.read_csv(
-    "commercial/pricing/customer_price_list.csv",
-    dtype={"sku": str}
-)
-
-products["sku"] = products["sku"].str.zfill(3)
-prices["sku"] = prices["sku"].str.zfill(3)
+prices["SKU"] = prices["SKU"].str.zfill(3)
+prices["SKU"] = prices["SKU"].astype(str).str.zfill(3)
 
 country = st.selectbox(
     "Country",

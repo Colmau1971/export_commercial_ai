@@ -4,6 +4,13 @@ from datetime import datetime
 from pathlib import Path
 import markdown
 from weasyprint import HTML
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    module="openpyxl"
+)
 
 st.set_page_config(
     page_title="Export Commercial AI",
@@ -37,10 +44,12 @@ customer = st.selectbox(
     "Customer",
     sorted(available_customers)
 )
+
 purchase_order = st.text_input(
     "Orden de compra del cliente",
     placeholder="Ej: OC-12345"
 )
+
 customer_row = customers[
     customers["Cliente"] == customer
 ].iloc[0]
@@ -66,7 +75,6 @@ with col2:
 st.markdown("---")
 st.subheader("Products")
 
-
 order_lines = []
 
 for _, row in customer_prices.iterrows():
@@ -87,7 +95,7 @@ for _, row in customer_prices.iterrows():
 
     with col3:
         st.write(
-            f"CIF USD {row['Precio CIF']}"
+            f"CIF USD {float(row['Precio CIF']):,.2f}"
         )
 
     with col4:
@@ -96,20 +104,19 @@ for _, row in customer_prices.iterrows():
             min_value=0,
             value=0,
             step=1,
-            key=f"cases_{sku}"
+            key=f"cases_{sku}_{row['ORIGEN']}"
         )
 
     if cases > 0:
 
         price_usd = float(row["Precio CIF"])
 
-
         order_lines.append({
             "sku": sku,
             "brand": row["MARCA"],
             "product": row["Descripcion"],
             "origin": row["ORIGEN"],
-            "presentation": row["GRAMOS"],
+            "presentation": str(row["GRAMOS"]),
             "cases": cases,
             "price_usd": price_usd,
             "total_usd": cases * price_usd
@@ -121,6 +128,19 @@ if order_lines:
 
     df_order = pd.DataFrame(order_lines)
 
+    orders_by_origin = {
+        origin: data
+        for origin, data in df_order.groupby("origin")
+    }
+
+    origins = df_order["origin"].unique()
+
+    if len(origins) > 1:
+        st.warning(
+            f"Multiple origins detected: {', '.join(origins)}. "
+            "Separate proformas will be generated."
+        )
+
     st.subheader("Order Summary")
 
     st.dataframe(
@@ -131,13 +151,16 @@ if order_lines:
     total = df_order["total_usd"].sum()
 
     st.metric(
-        "Total CIF USD",
-        f"{total:,.2f}"
+        "TOTAL CIF USD",
+        f"${total:,.2f}"
     )
 
     if st.button("Generate Proforma PDF"):
+
         if not purchase_order:
-            st.error("Debes ingresar la orden de compra del cliente.")
+            st.error(
+                "Debes ingresar la orden de compra del cliente."
+            )
             st.stop()
 
         date_str = datetime.now().strftime("%Y%m%d")
@@ -152,27 +175,52 @@ if order_lines:
             output_dir.glob(f"proforma_{date_str}_*.md")
         )
 
-        sequence = str(len(existing_files) + 1).zfill(3)
+        base_sequence = len(existing_files) + 1
 
-        proforma_number = f"PF-{date_str}-{sequence}"
+        generated_files = []
+        st.session_state["generated_files"] = []
+       
 
-        rows_md = []
+        for index, (origin, origin_df) in enumerate(
+            orders_by_origin.items(),
+            start=0
+        ):
 
-        for _, row in df_order.iterrows():
+            sequence = str(
+                base_sequence + index
+            ).zfill(3)
 
-            rows_md.append(
-                f"| {row['sku']} | "
-                f"{row['brand']} | "
-                f"{row['product']} | "
-                f"{row['origin']} | "
-                f"{row['presentation']} | "
-                f"{row['cases']:,} | "
-                f"{row['price_usd']:,.2f} | "
-                f"{row['total_usd']:,.2f} |"
+            origin_clean = (
+                str(origin)
+                .replace(" ", "_")
+                .replace("/", "-")
+                .upper()
             )
-        product_table = "\n".join(rows_md)
 
-        proforma_text = f"""
+            proforma_number = (
+                f"PF-{date_str}-{sequence}-{origin_clean}"
+            )
+
+            origin_total = origin_df["total_usd"].sum()
+
+            rows_md = []
+
+            for _, row in origin_df.iterrows():
+
+                rows_md.append(
+                    f"| {row['sku']} | "
+                    f"{row['brand']} | "
+                    f"{row['product']} | "
+                    f"{row['origin']} | "
+                    f"{row['presentation']} | "
+                    f"{row['cases']:,} | "
+                    f"{row['price_usd']:,.2f} | "
+                    f"{row['total_usd']:,.2f} |"
+                )
+
+            product_table = "\n".join(rows_md)
+
+            proforma_text = f"""
 # PROFORMA INVOICE
 
 ## General Information
@@ -183,9 +231,11 @@ if order_lines:
 - NIF: {customer_row['NIF:']}
 - Contact: {customer_row['Contacto:']}
 - Phone: {customer_row['NUMERO']}
+- Origin: {origin}
 - Price List: {lista_p}
 - Incoterm: CIF
 - Currency: USD
+
 ---
 
 ## Product Detail
@@ -198,7 +248,7 @@ if order_lines:
 
 ## Total
 
-**Total CIF USD:** {total:,.2f}
+**Total CIF USD:** {origin_total:,.2f}
 
 ---
 
@@ -209,24 +259,31 @@ if order_lines:
 - Subject to inventory availability.
 """
 
-        md_output_path = f"outputs/proforma_{date_str}_{sequence}.md"
-        pdf_output_path = f"outputs/pdf/proforma_{date_str}_{sequence}.pdf"
+            md_output_path = (
+                f"outputs/proforma_{date_str}_{sequence}_{origin_clean}.md"
+            )
 
-        with open(
-            md_output_path,
-            "w",
-            encoding="utf-8"
-        ) as f:
-            f.write(proforma_text)
+            pdf_output_path = (
+                f"outputs/pdf/proforma_{date_str}_{sequence}_{origin_clean}.pdf"
+            )
 
-        html_body = markdown.markdown(
-            proforma_text,
-            extensions=["tables"]
-        )
+            with open(
+                md_output_path,
+                "w",
+                encoding="utf-8"
+            ) as f:
+                f.write(proforma_text)
 
-        logo_uri = Path("assets/logo.png").resolve().as_uri()
+            html_body = markdown.markdown(
+                proforma_text,
+                extensions=["tables"]
+            )
 
-        html_content = f"""
+            logo_uri = Path(
+                "assets/logo.png"
+            ).resolve().as_uri()
+
+            html_content = f"""
 <html>
 <head>
 <style>
@@ -235,6 +292,7 @@ if order_lines:
     size: A4 landscape;
     margin: 20px;
 }}
+
 body {{
     font-family: Arial, sans-serif;
     padding: 20px;
@@ -242,11 +300,12 @@ body {{
     font-size: 11px;
     line-height: 1.2;
 }}
+
 .logo {{
     width: 140px;
     margin-bottom: 10px;
-    margin: 2px 0;
 }}
+
 h1 {{
     color: #003B75;
     font-size: 24px;
@@ -259,54 +318,79 @@ h2 {{
     margin-top: 12px;
     margin-bottom: 6px;
 }}
+
+p {{
+    margin: 2px 0;
+}}
+
 table {{
     width: 100%;
-    borde  r-collapse: collapse;
+    border-collapse: collapse;
     margin-top: 20px;
 }}
+
 th {{
     background-color: #003B75;
     color: white;
     padding: 6px;
     border: 1px solid #ccc;
 }}
+
 td {{
     padding: 5px;
     font-size: 10px;
     border: 1px solid #ccc;
 }}
+
 strong {{
     font-size: 18px;
 }}
+
 </style>
 </head>
+
 <body>
+
 <img src="{logo_uri}" class="logo">
+
 {html_body}
+
 </body>
 </html>
 """
 
-        HTML(
-            string=html_content,
-            base_url="."
-        ).write_pdf(pdf_output_path)
+            HTML(
+                string=html_content,
+                base_url="."
+            ).write_pdf(pdf_output_path)
+
+            generated_files.append({
+                "proforma_number": proforma_number,
+                "pdf_output_path": pdf_output_path,
+                "origin": origin
+            })
+        st.session_state["generated_files"] = generated_files
 
         st.success(
-            f"Proforma generated: {proforma_number}"
+            f"{len(generated_files)} proforma(s) generated."
         )
+    if "generated_files" in st.session_state:
 
-        with open(pdf_output_path, "rb") as pdf_file:
+        st.subheader("Generated Proformas")
 
-            st.download_button(
-                label="Download PDF",
-                data=pdf_file,
-                file_name=f"{proforma_number}.pdf",
-                mime="application/pdf"
-            )
+        for generated in st.session_state["generated_files"]:
 
-else:
+            with open(
+                generated["pdf_output_path"],
+                "rb"
+            ) as pdf_file:
 
-    st.info(
-        "Select quantities to build the proforma."
-    )
+                st.download_button(
+                    label=f"Download PDF - {generated['origin']}",
+                    data=pdf_file,
+                    file_name=f"{generated['proforma_number']}.pdf",
+                    mime="application/pdf",
+                    key=f"download_{generated['proforma_number']}_{generated['origin']}"
+                )
+
+         

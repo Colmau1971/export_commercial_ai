@@ -143,28 +143,8 @@ if order_lines:
 
     st.subheader("Order Summary")
 
-    pipeline_summary = (
-        pipeline_df
-        .groupby("status", dropna=False)
-        .agg(
-            proformas=("proforma_number", "count"),
-            total_cif_usd=("total_cif_usd", "sum"),
-            final_value_usd=("final_value_usd", "sum")
-        )
-        .reset_index()
-    )
-
-    pipeline_summary = pipeline_summary.rename(
-        columns={
-            "status": "Status",
-            "proformas": "Proformas",
-            "total_cif_usd": "Pipeline USD",
-            "final_value_usd": "Forecast USD"
-        }
-    )
-
     st.dataframe(
-        pipeline_summary,
+        df_order,
         width="stretch"
     )
 

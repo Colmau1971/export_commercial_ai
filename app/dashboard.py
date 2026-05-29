@@ -466,7 +466,6 @@ history_path = Path(
 if history_path.exists():
 
     history_df = pd.read_excel(history_path)
-
     history_df = history_df.rename(columns={
         "date": "Fecha",
         "proforma_number": "Proforma",
@@ -523,3 +522,92 @@ if history_path.exists():
 
 else:
     st.info("No proforma history yet. Generate a proforma first.")
+
+st.markdown("---")
+st.subheader("✏️ Update Proforma Status")
+
+if history_path.exists():
+
+    history_df_edit = pd.read_excel(history_path)
+
+    selected_proforma = st.selectbox(
+        "Select Proforma",
+        history_df_edit["proforma_number"].dropna().unique()
+    )
+
+    selected_row = history_df_edit[
+        history_df_edit["proforma_number"] == selected_proforma
+    ].iloc[0]
+
+    status_options = ["Draft", "Sent", "Approved", "Rejected", "Closed"]
+    delivered_options = ["No", "Yes"]
+
+    current_status = selected_row.get("status", "Draft")
+    if pd.isna(current_status) or current_status not in status_options:
+        current_status = "Draft"
+
+    current_delivered = selected_row.get("delivered_to_customer", "No")
+    if pd.isna(current_delivered) or current_delivered not in delivered_options:
+        current_delivered = "No"
+
+    current_final_value = selected_row.get("final_value_usd", 0)
+    if pd.isna(current_final_value):
+        current_final_value = 0
+
+    current_comments = selected_row.get("comments", "")
+    if pd.isna(current_comments):
+        current_comments = ""
+
+    col_status, col_delivered, col_value = st.columns(3)
+
+    with col_status:
+        new_status = st.selectbox(
+            "Status",
+            status_options,
+            index=status_options.index(current_status),
+            key="update_status"
+        )
+
+    with col_delivered:
+        new_delivered = st.selectbox(
+            "Delivered?",
+            delivered_options,
+            index=delivered_options.index(current_delivered),
+            key="update_delivered"
+        )
+
+    with col_value:
+        new_final_value = st.number_input(
+            "Final Value USD",
+            min_value=0.0,
+            value=float(current_final_value),
+            step=100.0,
+            key="update_final_value"
+        )
+
+    new_comments = st.text_area(
+        "Comments",
+        value=str(current_comments),
+        key="update_comments"
+    )
+
+    if st.button("Update Proforma Status"):
+
+        mask = history_df_edit["proforma_number"] == selected_proforma
+
+        history_df_edit.loc[mask, "status"] = new_status
+        history_df_edit.loc[mask, "delivered_to_customer"] = new_delivered
+        history_df_edit.loc[mask, "final_value_usd"] = new_final_value
+        history_df_edit.loc[mask, "comments"] = new_comments
+
+        history_df_edit.to_excel(
+            history_path,
+            index=False
+        )
+
+        st.success(
+            f"Proforma {selected_proforma} updated."
+        )
+
+else:
+    st.info("No history available to update.")    

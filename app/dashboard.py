@@ -154,7 +154,35 @@ if order_lines:
         "TOTAL CIF USD",
         f"${total:,.2f}"
     )
+    st.markdown("---")
+    st.subheader("Commercial Tracking")
 
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        proforma_status = st.selectbox(
+            "Status",
+            ["Draft", "Sent", "Approved", "Rejected", "Closed"]
+        )
+
+    with col2:
+        delivered_to_customer = st.selectbox(
+            "Delivered?",
+            ["No", "Yes"]
+        )
+
+    with col3:
+        final_value_usd = st.number_input(
+            "Final Value USD",
+            min_value=0.0,
+            value=float(total),
+            step=100.0
+        )
+
+    commercial_comments = st.text_area(
+        "Comments",
+        placeholder="Ej: Sent by email, pending customer approval..."
+    )
     if st.button("Generate Proforma PDF"):
 
         if not purchase_order:
@@ -375,6 +403,7 @@ strong {{
 
             history_path = history_dir / "proformas_log.xlsx"
 
+        
             log_row = pd.DataFrame([{
                 "date": date_str,
                 "proforma_number": proforma_number,
@@ -383,9 +412,14 @@ strong {{
                 "origin": origin,
                 "price_list": lista_p,
                 "total_cif_usd": origin_total,
+
+                "status": proforma_status,
+                "delivered_to_customer": delivered_to_customer,
+                "final_value_usd": final_value_usd,
+                "comments": commercial_comments,
+
                 "pdf_file": pdf_output_path
             }])
-
             if history_path.exists():
                 existing_log = pd.read_excel(history_path)
                 updated_log = pd.concat(
@@ -434,16 +468,21 @@ if history_path.exists():
     history_df = pd.read_excel(history_path)
 
     history_df = history_df.rename(columns={
-    "date": "Fecha",
-    "proforma_number": "Proforma",
-    "customer": "Cliente",
-    "purchase_order": "OC Cliente",
-    "origin": "Origen",
-    "price_list": "Lista Precio",
-    "total_cif_usd": "Total CIF USD",
-    "pdf_file": "Archivo PDF"
-    })
+        "date": "Fecha",
+        "proforma_number": "Proforma",
+        "customer": "Cliente",
+        "purchase_order": "OC Cliente",
+        "origin": "Origen",
+        "price_list": "Lista Precio",
+        "total_cif_usd": "Total CIF USD",
 
+        "status": "Status",
+        "delivered_to_customer": "Delivered",
+        "final_value_usd": "Final Value USD",
+        "comments": "Comments",
+
+        "pdf_file": "Archivo PDF"
+    })
     customer_filter = st.selectbox(
         "Customer Filter",
         ["All"] + sorted(

@@ -423,5 +423,55 @@ strong {{
                     mime="application/pdf",
                     key=f"download_{generated['proforma_number']}_{generated['origin']}"
                 )
+if history_path.exists():
+
+    history_df = pd.read_excel(history_path)
+
+    customer_filter = st.selectbox(
+        "Customer Filter",
+        ["All"] + sorted(
+            history_df["customer"]
+            .dropna()
+            .unique()
+            .tolist()
+        )
+    )
+
+    if customer_filter != "All":
+
+        history_df = history_df[
+            history_df["customer"] == customer_filter
+        ]
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Proformas",
+        len(history_df)
+    )
+
+    col2.metric(
+        "Customers",
+        history_df["customer"].nunique()
+    )
+
+    col3.metric(
+        "USD Generated",
+        f"${history_df['total_cif_usd'].sum():,.0f}"
+    )
+
+    st.dataframe(
+        history_df.sort_values(
+            by="date",
+            ascending=False
+        ),
+        width="stretch"
+    )
+
+else:
+
+    st.info(
+        "No proforma history yet. Generate a proforma first."
+    )               
 
   

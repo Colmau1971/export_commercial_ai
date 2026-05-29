@@ -423,6 +423,12 @@ strong {{
                     mime="application/pdf",
                     key=f"download_{generated['proforma_number']}_{generated['origin']}"
                 )
+    
+st.markdown("---")
+st.subheader("📊 Proforma History")
+history_path = Path(
+        "outputs/history/proformas_log.xlsx"
+)
 if history_path.exists():
 
     history_df = pd.read_excel(history_path)
@@ -438,23 +444,14 @@ if history_path.exists():
     )
 
     if customer_filter != "All":
-
         history_df = history_df[
             history_df["customer"] == customer_filter
         ]
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric(
-        "Proformas",
-        len(history_df)
-    )
-
-    col2.metric(
-        "Customers",
-        history_df["customer"].nunique()
-    )
-
+    col1.metric("Proformas", len(history_df))
+    col2.metric("Customers", history_df["customer"].nunique())
     col3.metric(
         "USD Generated",
         f"${history_df['total_cif_usd'].sum():,.0f}"
@@ -469,9 +466,4 @@ if history_path.exists():
     )
 
 else:
-
-    st.info(
-        "No proforma history yet. Generate a proforma first."
-    )               
-
-  
+    st.info("No proforma history yet. Generate a proforma first.")

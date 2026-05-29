@@ -369,6 +369,37 @@ strong {{
                 "pdf_output_path": pdf_output_path,
                 "origin": origin
             })
+
+            history_dir = Path("outputs/history")
+            history_dir.mkdir(exist_ok=True)
+
+            history_path = history_dir / "proformas_log.xlsx"
+
+            log_row = pd.DataFrame([{
+                "date": date_str,
+                "proforma_number": proforma_number,
+                "customer": customer,
+                "purchase_order": purchase_order,
+                "origin": origin,
+                "price_list": lista_p,
+                "total_cif_usd": origin_total,
+                "pdf_file": pdf_output_path
+            }])
+
+            if history_path.exists():
+                existing_log = pd.read_excel(history_path)
+                updated_log = pd.concat(
+                    [existing_log, log_row],
+                    ignore_index=True
+                )
+            else:
+                updated_log = log_row
+
+            updated_log.to_excel(
+                history_path,
+                index=False
+            )
+
         st.session_state["generated_files"] = generated_files
 
         st.success(
@@ -376,7 +407,7 @@ strong {{
         )
     if "generated_files" in st.session_state:
 
-        st.subheader("Generated Proformas")
+        st.markdown("### Generated Proformas")
 
         for generated in st.session_state["generated_files"]:
 
@@ -393,4 +424,4 @@ strong {{
                     key=f"download_{generated['proforma_number']}_{generated['origin']}"
                 )
 
-         
+  

@@ -45,14 +45,27 @@ customer_row = customers[
     customers["Cliente"] == customer
 ].iloc[0]
 
-lista_p = customer_row["LISTA P"]
+lista_p = customer_row["LISTA_PRECIOS"]
 
 customer_prices = prices[
-    prices["LISTA"] == lista_p
+    prices["LISTA_PRECIOS"] == lista_p
 ]
+
+st.markdown("### Customer Information")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.write(f"**Customer:** {customer_row['Cliente']}")
+    st.write(f"**NIF:** {customer_row['NIF:']}")
+
+with col2:
+    st.write(f"**Contact:** {customer_row['Contacto:']}")
+    st.write(f"**Phone:** {customer_row['NUMERO']}")
 
 st.markdown("---")
 st.subheader("Products")
+
 
 order_lines = []
 
@@ -90,11 +103,13 @@ for _, row in customer_prices.iterrows():
 
         price_usd = float(row["Precio CIF"])
 
+
         order_lines.append({
             "sku": sku,
             "brand": row["MARCA"],
             "product": row["Descripcion"],
-            "presentation": f"{row['GRAMOS']} g",
+            "origin": row["ORIGEN"],
+            "presentation": row["GRAMOS"],
             "cases": cases,
             "price_usd": price_usd,
             "total_usd": cases * price_usd
@@ -149,12 +164,12 @@ if order_lines:
                 f"| {row['sku']} | "
                 f"{row['brand']} | "
                 f"{row['product']} | "
+                f"{row['origin']} | "
                 f"{row['presentation']} | "
-                f"{row['cases']} | "
+                f"{row['cases']:,} | "
                 f"{row['price_usd']:,.2f} | "
                 f"{row['total_usd']:,.2f} |"
             )
-
         product_table = "\n".join(rows_md)
 
         proforma_text = f"""
@@ -165,6 +180,9 @@ if order_lines:
 - Proforma: {proforma_number}
 - Customer: {customer}
 - Customer PO: {purchase_order}
+- NIF: {customer_row['NIF:']}
+- Contact: {customer_row['Contacto:']}
+- Phone: {customer_row['NUMERO']}
 - Price List: {lista_p}
 - Incoterm: CIF
 - Currency: USD
@@ -172,8 +190,8 @@ if order_lines:
 
 ## Product Detail
 
-| SKU | Brand | Product | Presentation | Cases | CIF Unit Price USD | CIF Total USD |
-|---|---|---|---|---:|---:|---:|
+| SKU | Brand | Product | Origin | Presentation | Cases | CIF Unit Price USD | CIF Total USD |
+|---|---|---|---|---|---:|---:|---:|
 {product_table}
 
 ---

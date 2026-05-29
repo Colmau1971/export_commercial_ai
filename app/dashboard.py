@@ -433,10 +433,21 @@ if history_path.exists():
 
     history_df = pd.read_excel(history_path)
 
+    history_df = history_df.rename(columns={
+    "date": "Fecha",
+    "proforma_number": "Proforma",
+    "customer": "Cliente",
+    "purchase_order": "OC Cliente",
+    "origin": "Origen",
+    "price_list": "Lista Precio",
+    "total_cif_usd": "Total CIF USD",
+    "pdf_file": "Archivo PDF"
+    })
+
     customer_filter = st.selectbox(
         "Customer Filter",
         ["All"] + sorted(
-            history_df["customer"]
+            history_df["Cliente"]
             .dropna()
             .unique()
             .tolist()
@@ -445,21 +456,27 @@ if history_path.exists():
 
     if customer_filter != "All":
         history_df = history_df[
-            history_df["customer"] == customer_filter
+            history_df["Cliente"] == customer_filter
         ]
 
     col1, col2, col3 = st.columns(3)
 
     col1.metric("Proformas", len(history_df))
-    col2.metric("Customers", history_df["customer"].nunique())
+    col2.metric("Customers", history_df["Cliente"].nunique())
     col3.metric(
         "USD Generated",
-        f"${history_df['total_cif_usd'].sum():,.0f}"
+        f"${history_df['Total CIF USD'].sum():,.0f}"
     )
-
+    with open(history_path, "rb") as history_file:
+        st.download_button(
+            label="⬇️ Download History Excel",
+            data=history_file,
+            file_name="proformas_log.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
     st.dataframe(
         history_df.sort_values(
-            by="date",
+            by="Fecha",
             ascending=False
         ),
         width="stretch"

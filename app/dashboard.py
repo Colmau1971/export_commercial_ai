@@ -143,8 +143,28 @@ if order_lines:
 
     st.subheader("Order Summary")
 
+    pipeline_summary = (
+        pipeline_df
+        .groupby("status", dropna=False)
+        .agg(
+            proformas=("proforma_number", "count"),
+            total_cif_usd=("total_cif_usd", "sum"),
+            final_value_usd=("final_value_usd", "sum")
+        )
+        .reset_index()
+    )
+
+    pipeline_summary = pipeline_summary.rename(
+        columns={
+            "status": "Status",
+            "proformas": "Proformas",
+            "total_cif_usd": "Pipeline USD",
+            "final_value_usd": "Forecast USD"
+        }
+    )
+
     st.dataframe(
-        df_order,
+        pipeline_summary,
         width="stretch"
     )
 
@@ -528,17 +548,16 @@ st.subheader("✏️ Update Proforma Status")
 
 if history_path.exists():
 
-    history_df_edit = pd.read_excel(history_path)
-    text_columns = [
-        "status",
-        "delivered_to_customer",
-        "comments"
-    ]
+    history_df_edit = pd.read_excel(
+        history_path,
+        dtype={
+            "status": str,
+            "delivered_to_customer": str,
+            "comments": str
+        }
+    )
 
-    for col in text_columns:
-        if col not in history_df_edit.columns:
-            history_df_edit[col] = ""
-
+    for col in ["status", "delivered_to_customer", "comments"]:
         history_df_edit[col] = (
             history_df_edit[col]
             .fillna("")
@@ -644,77 +663,92 @@ if history_path.exists():
 
     pipeline_df = pd.read_excel(history_path)
 
-    if "status" in pipeline_df.columns:
+    pipeline_df["status"] = (
+        pipeline_df["status"]
+        .fillna("Draft")
+        .replace("None", "Draft")
+    )
 
-        pipeline_summary = (
-            pipeline_df
-            .groupby("status", dropna=False)
-            .agg(
-                proformas=("proforma_number", "count"),
-                total_cif_usd=("total_cif_usd", "sum"),
-                final_value_usd=("final_value_usd", "sum")
-            )
-            .reset_index()
+    pipeline_df["final_value_usd"] = (
+        pd.to_numeric(
+            pipeline_df["final_value_usd"],
+            errors="coerce"
         )
+        .fillna(
+            pipeline_df["total_cif_usd"]
+        )
+    )
+    pipeline_summary = (
+        pipeline_df
+        .groupby("status", dropna=False)
+        .agg(
+            proformas=("proforma_number", "count"),
+            total_cif_usd=("total_cif_usd", "sum"),
+            final_value_usd=("final_value_usd", "sum")
+        )
+        .reset_index()
+    )
 
-        st.dataframe(
+    pipeline_summary = pipeline_summary.rename(
+        columns={
+            "status": "Status",
+            "proformas": "Proformas",
+            "total_cif_usd": "Pipeline USD",
+            "final_value_usd": "Forecast USD"
+        }
+    )
+
+    st.dataframe(
             pipeline_summary,
             width="stretch"
-        )
-
-        closed_value = pipeline_df[
+    )
+    closed_value = pipeline_df[
             pipeline_df["status"] == "Closed"
-        ]["final_value_usd"].sum()
+    ]["final_value_usd"].sum()
 
-        total_pipeline = pipeline_df[
+    total_pipeline = pipeline_df[
             pipeline_df["status"].isin(
                 ["Draft", "Sent", "Approved", "Closed"]
-            )
-        ]["final_value_usd"].sum()
+    )
+    ]["final_value_usd"].sum()
 
-        closed_count = len(
+    closed_count = len(
             pipeline_df[pipeline_df["status"] == "Closed"]
-        )
+    )
 
-        approved_sent_count = len(
+    approved_sent_count = len(
             pipeline_df[
                 pipeline_df["status"].isin(
                     ["Sent", "Approved", "Closed"]
                 )
             ]
-        )
+    )
 
-        win_rate = (
+    win_rate = (
             closed_count / approved_sent_count * 100
             if approved_sent_count > 0
             else 0
-        )
+    )
 
-        col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-        col1.metric(
+    col1.metric(
             "Pipeline USD",
             f"${total_pipeline:,.0f}"
-        )
+    )
 
-        col2.metric(
+    col2.metric(
             "Closed USD",
             f"${closed_value:,.0f}"
-        )
+    )
 
-        col3.metric(
+    col3.metric(
             "Win Rate",
             f"{win_rate:.1f}%"
-        )
-
-    else:
-
-        st.info(
-            "No commercial status data yet."
-        )
+    )
 
 else:
 
-    st.info(
+   st.info(
         "No history available for pipeline."
-    )     
+)     

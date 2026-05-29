@@ -2,8 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
+
 outputs/*.md
-outputs/pdf/*.pdfoutputs/history/
 outputs/pdf/
-__pycache__/
-*.pyc
+outputs/history/

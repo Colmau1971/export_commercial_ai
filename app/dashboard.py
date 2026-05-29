@@ -529,7 +529,32 @@ st.subheader("✏️ Update Proforma Status")
 if history_path.exists():
 
     history_df_edit = pd.read_excel(history_path)
+    text_columns = [
+        "status",
+        "delivered_to_customer",
+        "comments"
+    ]
 
+    for col in text_columns:
+        if col not in history_df_edit.columns:
+            history_df_edit[col] = ""
+
+        history_df_edit[col] = (
+            history_df_edit[col]
+            .fillna("")
+            .astype(str)
+        )
+
+    if "final_value_usd" not in history_df_edit.columns:
+        history_df_edit["final_value_usd"] = 0.0
+
+    history_df_edit["final_value_usd"] = (
+        pd.to_numeric(
+            history_df_edit["final_value_usd"],
+            errors="coerce"
+        )
+        .fillna(0.0)
+    )
     selected_proforma = st.selectbox(
         "Select Proforma",
         history_df_edit["proforma_number"].dropna().unique()
@@ -595,11 +620,11 @@ if history_path.exists():
 
         mask = history_df_edit["proforma_number"] == selected_proforma
 
-        history_df_edit.loc[mask, "status"] = new_status
-        history_df_edit.loc[mask, "delivered_to_customer"] = new_delivered
+        history_df_edit.loc[mask, "status"] = str(new_status)
+        history_df_edit.loc[mask, "delivered_to_customer"] = str(new_delivered)
         history_df_edit.loc[mask, "final_value_usd"] = new_final_value
-        history_df_edit.loc[mask, "comments"] = new_comments
-
+        history_df_edit.loc[mask, "comments"] = str(new_comments)
+        
         history_df_edit.to_excel(
             history_path,
             index=False
@@ -610,4 +635,86 @@ if history_path.exists():
         )
 
 else:
-    st.info("No history available to update.")    
+    st.info("No history available to update.")   
+
+st.markdown("---")
+st.subheader("📈 Commercial Pipeline")
+
+if history_path.exists():
+
+    pipeline_df = pd.read_excel(history_path)
+
+    if "status" in pipeline_df.columns:
+
+        pipeline_summary = (
+            pipeline_df
+            .groupby("status", dropna=False)
+            .agg(
+                proformas=("proforma_number", "count"),
+                total_cif_usd=("total_cif_usd", "sum"),
+                final_value_usd=("final_value_usd", "sum")
+            )
+            .reset_index()
+        )
+
+        st.dataframe(
+            pipeline_summary,
+            width="stretch"
+        )
+
+        closed_value = pipeline_df[
+            pipeline_df["status"] == "Closed"
+        ]["final_value_usd"].sum()
+
+        total_pipeline = pipeline_df[
+            pipeline_df["status"].isin(
+                ["Draft", "Sent", "Approved", "Closed"]
+            )
+        ]["final_value_usd"].sum()
+
+        closed_count = len(
+            pipeline_df[pipeline_df["status"] == "Closed"]
+        )
+
+        approved_sent_count = len(
+            pipeline_df[
+                pipeline_df["status"].isin(
+                    ["Sent", "Approved", "Closed"]
+                )
+            ]
+        )
+
+        win_rate = (
+            closed_count / approved_sent_count * 100
+            if approved_sent_count > 0
+            else 0
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Pipeline USD",
+            f"${total_pipeline:,.0f}"
+        )
+
+        col2.metric(
+            "Closed USD",
+            f"${closed_value:,.0f}"
+        )
+
+        col3.metric(
+            "Win Rate",
+            f"{win_rate:.1f}%"
+        )
+
+    else:
+
+        st.info(
+            "No commercial status data yet."
+        )
+
+else:
+
+    st.info(
+        "No history available for pipeline."
+    )     
